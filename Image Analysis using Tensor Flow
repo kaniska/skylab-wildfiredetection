@@ -1,0 +1,147 @@
+Understand how does Image Analysis work ?
+
+https://www.tensorflow.org/lite/models/object_detection/overview
+
+RefCard:  http://openaccess.thecvf.com/content_cvpr_2017/poster/3562_poster.pdf
+
+Understand how does Docker container work ?
+
+Setup Environment
+
+https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/installation.md
+
+Build the Model
+
+Goal: early detect the wildfire
+
+We provide the following HPWREN camera image sequences as training dataset.
+
+Train Dataset https://tinyurl.com/yy3evlfx 
+
+HPWREN Cameras: Smoke/No Smoke datasets We separated the images into smoke and no smoke categories for anyone who is interested in building a smoke classifier.
+HPWREN Cameras: Bounding Box Annotated Smoke Dataset (Pascal VOC annotation format) We annotated these images using bounding box for smoke detection.
+
+root@c963a4e2e324:/tensorflow# python models/research/object_detection/legacy/train.py --logtostderr --train_dir=/tensorflow/train/ --pipeline_config_path=/tensorflow/train/faster_rcnn_resnet101.config
+
+— Any model exported using the export_inference_graph.py tool can be loaded here simply by changing PATH_TO_FROZEN_GRAPH to point to a new .pb file.
+By default we use an "SSD with Mobilenet" model here. See the detection model zoo for a list of other models that can be run out-of-the-box with varying speeds and accuracies.
+
+Ref: https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/detection_model_zoo.md
+—- 
+
+Subfolder 20170625-BBM-bm-n-mobo >>> contains the image sequences captured by a HPWREN camera when a fire broke out >>> images ~40 mins before and after the ignition of fire 
+20170625-BBM-bm-n-mobo >> 
+1498416633_+00240.jpg (first appearance of smoke)
+>> 1498413993_-02400.jpg  (2400 seconds before detecting the first fire)
+>> 1498418793_+02400.jpg (2400 seconds after detecting the first fire)
+python models/research/object_detection/export_inference_graph.py --input_type image_tensor --pipeline_config_path /tensorflow/train/faster_rcnn_resnet101.config --trained_checkpoint_prefix /tensorflow/train/model.ckpt-1229 --output_directory /tensorflow/inference_graph
+
+label_meta: https://tinyurl.com/y2g2o2jk 
+
+You need to build a model that uses previous last seen image sequences (moving window) to predict the presence of smoke in the current image.
+>>>  root@c963a4e2e324:/tensorflow# jupyter notebook --ip 0.0.0.0 --no-browser --allow-root
+
+MODEL_NAME = '/tensorflow/inference_graph'
+MODEL_FILE = MODEL_NAME + '.tar.gz'
+DOWNLOAD_BASE = 'http://download.tensorflow.org/models/object_detection/'
+# Path to frozen detection graph. This is the actual model that is used for the object detection.
+PATH_TO_FROZEN_GRAPH = MODEL_NAME + '/frozen_inference_graph.pb'
+# List of the strings that is used to add correct label for each box.
+PATH_TO_LABELS = '/tensorflow/input/annotations/label_map.pbtxt'
+ 
+Loading label map
+Label maps map indices to category names, so that when our convolution network predicts 5, we know that this corresponds to airplane. Here we use internal utility functions, but anything that returns a dictionary mapping integers to appropriate string labels would be fine
+
+category_index = label_map_util.create_category_index_from_labelmap(PATH_TO_LABELS, use_display_name=True)
+
+Detection
+# For the sake of simplicity we will use only 2 images:
+# image1.jpg
+# image2.jpg
+# If you want to test the code with your images, just add path to the images to the TEST_IMAGE_PATHS.
+PATH_TO_TEST_IMAGES_DIR = '/tensorflow/test/shapes'
+TEST_IMAGE_PATHS = [ os.path.join(PATH_TO_TEST_IMAGES_DIR, 'image{}.jpg'.format(i)) for i in range(1, 4) ]
+
+# Size, in inches, of the output images.
+IMAGE_SIZE = (12, 8)
+ 
+ 
+==============================================================
+we will run your program against a new test dataset. The test dataset will have the same directory structure as the train dataset.
+In the end, your program will output a CSV with the following format.
+Output File
+folder_name, smoke_detected(yes/no), image_filename_where_smoke_detected, index of image in the sequence (zero indexed, -1 if no smoke detected)
+Example:
+20170625-BBM-bm-n-mobo,yes,1498416633_+00240.jpg,14
+20170625-BBM-wk-w-abbc,no,-,-1
+ 
+
+================================================
+
+References
+Live Collab
+https://colab.research.google.com/github/aiformankind/lets-stop-wildfires-hackathon/blob/master/Challenge_1B_WildfireSmokeImageClassifierForDemo.ipynb#scrollTo=Ps5obHk8RI20
+
+Local Jupyter
+
+Either
+>> docker container start c963a4e2e3243dd2664b870c5bf1efa21c83bffcb21d97ed479c22dc18056cec
+Or
+>> docker run -e TZ=US/PACIFIC -it -p 8888:8888 -p 6006:6006 --name=wildfiredetection aiformankind/wildfiredetection:0.0.1
+
+docker ps
+docker exec -it wildfiredetection /bin/bash
+
+Once inside docker:
+root@c963a4e2e324:/tensorflow# 
+root@c963a4e2e324:/tensorflow# pip show tensorflow
+
+root@c963a4e2e324:/tensorflow#jupyter notebook --ip 0.0.0.0 --no-browser --allow-root
+http://(c963a4e2e324 or 127.0.0.1):8888/?token=f14d680afa89c6230ecdd7b8a5186d0a3678d78dd90e13ac
+
+	
+
+
+
+http://127.0.0.1:8888/notebooks/object_detection_wildfire.ipynb
+
+V2
+Latest Code:
+https://github.com/aiformankind/lets-stop-wildfires-hackathon/blob/master/wildfire_smoke_challenge_2.md
+
+https://colab.research.google.com/github/aiformankind/lets-stop-wildfires-hackathon/blob/master/Challenge_1B_WildfireSmokeImageClassifierForDemo.ipynb
+
+https://aiformankind.github.io/lets-stop-wildfires-hackathon/wildfire_smoke_challenge_1B.html
+
+===
+Analysis of Code
+
+Labelling and Bounding Box
+https://github.com/heye0507/lets-stop-wildfire-hackathon
+
+Unbalanced Data
+https://towardsdatascience.com/deep-learning-unbalanced-training-data-solve-it-like-this-6c528e9efea6
+
+Transfer Learning
+
+https://adventuresinmachinelearning.com/transfer-learning-tensorflow-2/
+
+https://builtin.com/data-science/transfer-learning
+
+https://www.tensorflow.org/tutorials/images/transfer_learning
+
+
+====
+
+https://www.meetup.com/AI-for-Mankind/events/265983290/
+
+Image Augmentation
+https://github.com/albumentations-team/albumentations/blob/master/docs/hall_of_fame.rst
+https://www.slideshare.net/VladimirIglovikov/albumentations-fast-and-flexible-image-augmentations
+
+Smoke Detection and Satellite Image Analysis
+https://fuego.ssl.berkeley.edu/smoke-detection/
+https://drive.google.com/file/d/1SECoJiJakNzkDrmczi_iRZIEBAH9yUuG/view
+http://www.wfas.net/
+
+
